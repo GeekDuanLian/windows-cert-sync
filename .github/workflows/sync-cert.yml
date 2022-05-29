@@ -1,0 +1,25 @@
+name: Sync Cert
+
+on:
+  workflow_dispatch:
+  schedule: [ { cron: 0 20 * * * } ] # 20:00 UTC pre day
+
+jobs:
+  main:
+    runs-on: windows-latest
+    defaults: { run: { shell: 'bash --noprofile --norc -eo pipefail {0}' } }
+    env: { files: root.sst disallowedcert.sst pinrules.sst }
+    steps:
+    - name: git clone
+      uses: actions/checkout@v3
+    - name: download
+      run: |
+        rm ${{ env.files }}
+        certutil -generateSSTFromWU root.sst
+        certutil -syncWithWU .
+    - name: upload
+      run: |
+        git diff --quiet -- ${{ env.files }} && exit
+        git add ${{ env.files }}
+        git -c user.name='bot' -c user.email='' commit -m 'sync cert'
+        git push
